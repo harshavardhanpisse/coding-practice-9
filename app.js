@@ -4,18 +4,18 @@ const sqlite3 = require('sqlite3')
 const path = require('path')
 const bcrypt = require('bcrypt')
 
-const databasePath = path.join(__dirname, 'cricketTeam.db')
+const dbPath = path.join(__dirname, 'userData.db')
 
 const app = express()
 
 app.use(express.json())
 
-let database = null
+let db = null
 
 const initializeDbAndServer = async () => {
   try {
-    database = await open({
-      filename: databasePath,
+    db = await open({
+      filename: dbPath,
       driver: sqlite3.Database,
     })
     app.listen(3000, () =>
@@ -29,7 +29,7 @@ const initializeDbAndServer = async () => {
 
 initializeDbAndServer()
 
-app.post('/users/', async (request, response) => {
+app.post('/register/', async (request, response) => {
   const {username, name, password, gender, location} = request.body
   const hashedPassword = await bcrypt.hash(request.body.password, 10)
   const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`
@@ -63,21 +63,17 @@ app.post('/login/', async (request, response) => {
   const {username, password} = request.body
   const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`
   const dbUser = await db.get(selectUserQuery)
-  try {
-    if (dbUser === undefined) {
-      response.status(400)
-      response.send('Invalid User')
+  if (dbUser === undefined) {
+    response.status(400)
+    response.send('Invalid User')  
+  } else {
+    const isPasswordMatched = await bcrypt.compare(password, dbUser.password)
+    if (isPasswordMatched === true) {
+      response.send('Login Success!')
     } else {
-      const isPasswordMatched = await bcrypt.compare(password, dbUser.password)
-      if (isPasswordMatched === true) {
-        response.send('Login Success!')
-      } else {
-        response.status(400)
-        response.send('Invalid Password')
-      }
+      response.status(400)
+      response.send('Invalid Password')
     }
-  } catch (e) {
-    console.log(`error: ${e.message}`)
   }
 })
 
